@@ -72,10 +72,6 @@ public:
             delete _request_builder;
         }
 
-        if (_network) {
-            delete _network;
-        }
-
         if (_socket && _we_created_socket) {
             delete _socket;
         }
