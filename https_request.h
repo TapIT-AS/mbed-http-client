@@ -90,7 +90,7 @@ public:
 
     virtual ~HttpsRequest() {}
 
-    disable_ssl_verify() {
+    void disable_ssl_verify() {
         mbedtls_ssl_config * conf = ((TLSSocket*)this->_socket)->get_ssl_config();
         mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_NONE);
     }
