@@ -203,6 +203,13 @@ public:
     }
 
     /**
+     * Set content type to json
+     */
+    void set_json_ct() {
+      set_header("Content-Type", "application/json");
+    }
+
+    /**
      * Get the error code.
      *
      * When send() fails, this error is set.
