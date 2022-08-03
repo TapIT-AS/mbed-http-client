@@ -32,7 +32,35 @@
  * \brief HttpsRequest implements the logic for interacting with HTTPS servers.
  */
 class HttpsRequest : public HttpRequestBase {
-public:
+  public:
+
+    /**
+ * HttpsRequest Constructor
+ * Initializes the TCP socket, sets up event handlers and flags.
+ *
+ * @param[in] network The network interface
+ * @param[in] ssl_ca_pem String containing the trusted CAs
+ * @param[in] method HTTP method to use
+ * @param[in] url URL to the resource
+ * @param[in] body_callback Callback on which to retrieve chunks of the response body.
+                            If not set, the complete body will be allocated on the HttpResponse object,
+                            which might use lots of memory.
+ */
+    HttpsRequest(NetworkInterface *network,
+                 http_method method,
+                 const char *url,
+                 Callback<void(const char *at, uint32_t length)> body_callback = 0)
+        : HttpRequestBase(network, nullptr, body_callback) {
+        _parsed_url = new ParsedUrl(url);
+        _request_builder = new HttpRequestBuilder(method, _parsed_url);
+        _response = nullptr;
+
+        _socket = new TLSSocket();
+        ((TLSSocket *) _socket)->open(network);
+        _we_created_socket = true;
+        this->disable_ssl_verify();
+    }
+
     /**
      * HttpsRequest Constructor
      * Initializes the TCP socket, sets up event handlers and flags.
@@ -45,20 +73,19 @@ public:
                                 If not set, the complete body will be allocated on the HttpResponse object,
                                 which might use lots of memory.
      */
-    HttpsRequest(NetworkInterface* network,
-                 const char* ssl_ca_pem,
+    HttpsRequest(NetworkInterface *network,
+                 const char *ssl_ca_pem,
                  http_method method,
-                 const char* url,
+                 const char *url,
                  Callback<void(const char *at, uint32_t length)> body_callback = 0)
-        : HttpRequestBase(network, NULL, body_callback)
-    {
+        : HttpRequestBase(network, nullptr, body_callback) {
         _parsed_url = new ParsedUrl(url);
         _request_builder = new HttpRequestBuilder(method, _parsed_url);
-        _response = NULL;
+        _response = nullptr;
 
         _socket = new TLSSocket();
-        ((TLSSocket*)_socket)->open(network);
-        ((TLSSocket*)_socket)->set_root_ca_cert(ssl_ca_pem);
+        ((TLSSocket *) _socket)->open(network);
+        ((TLSSocket *) _socket)->set_root_ca_cert(ssl_ca_pem);
         _we_created_socket = true;
     }
 
@@ -73,13 +100,12 @@ public:
                                 If not set, the complete body will be allocated on the HttpResponse object,
                                 which might use lots of memory.
      */
-    HttpsRequest(NetworkInterface* network,
-                 TLSSocket* socket,
+    HttpsRequest(NetworkInterface *network,
+                 TLSSocket *socket,
                  http_method method,
-                 const char* url,
+                 const char *url,
                  Callback<void(const char *at, uint32_t length)> body_callback = 0)
-        : HttpRequestBase(network, socket, body_callback)
-    {
+        : HttpRequestBase(network, socket, body_callback) {
         _parsed_url = new ParsedUrl(url);
         _body_callback = body_callback;
         _request_builder = new HttpRequestBuilder(method, _parsed_url);
@@ -91,11 +117,11 @@ public:
     virtual ~HttpsRequest() {}
 
     void disable_ssl_verify() {
-        mbedtls_ssl_config * conf = ((TLSSocket*)this->_socket)->get_ssl_config();
+        mbedtls_ssl_config *conf = ((TLSSocket *) this->_socket)->get_ssl_config();
         mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_NONE);
     }
 
-protected:
+  protected:
     virtual nsapi_error_t connect_socket(char *host, uint16_t port) {
         SocketAddress addr;
 
@@ -106,7 +132,7 @@ protected:
 
         addr.set_port(port);
 
-        return ((TCPSocket*)_socket)->connect(addr);
+        return ((TCPSocket *) _socket)->connect(addr);
     }
 };
 

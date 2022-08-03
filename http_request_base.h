@@ -49,10 +49,9 @@ class HttpRequestBase {
     friend class HttpRequest;
     friend class HttpsRequest;
 
-public:
-    HttpRequestBase(NetworkInterface* network, Socket *socket, Callback<void(const char *at, uint32_t length)> bodyCallback)
-        : _network(network), _socket(socket), _body_callback(bodyCallback), _request_buffer(NULL), _request_buffer_ix(0)
-    {}
+  public:
+    HttpRequestBase(NetworkInterface *network, Socket *socket, Callback<void(const char *at, uint32_t length)> bodyCallback)
+        : _socket(socket), _network(network), _body_callback(bodyCallback), _request_buffer(nullptr), _request_buffer_ix(0) {}
 
     /**
      * HttpRequest Constructor
@@ -60,17 +59,12 @@ public:
     virtual ~HttpRequestBase() {
         // should response be owned by us? Or should user free it?
         // maybe implement copy constructor on response...
-        if (_response) {
-            delete _response;
-        }
 
-        if (_parsed_url) {
-            delete _parsed_url;
-        }
+        delete _response;
 
-        if (_request_builder) {
-            delete _request_builder;
-        }
+        delete _parsed_url;
+
+        delete _request_builder;
 
         if (_socket && _we_created_socket) {
             delete _socket;
@@ -85,18 +79,18 @@ public:
      * @return An HttpResponse pointer on success, or NULL on failure.
      *         See get_error() for the error code.
      */
-    HttpResponse* send(const void* body = NULL, nsapi_size_t body_size = 0) {
+    HttpResponse *send(const void *body = nullptr, nsapi_size_t body_size = 0) {
         nsapi_size_or_error_t ret = connect_socket();
 
         if (ret != NSAPI_ERROR_OK) {
             _error = ret;
-            return NULL;
+            return nullptr;
         }
 
         _request_buffer_ix = 0;
 
         uint32_t request_size = 0;
-        char* request = _request_builder->build(body, body_size, request_size);
+        char *request = _request_builder->build(body, body_size, request_size);
 
         ret = send_buffer(request, request_size);
 
@@ -104,7 +98,7 @@ public:
 
         if (ret < 0) {
             _error = ret;
-            return NULL;
+            return nullptr;
         }
 
         return create_http_response();
@@ -117,13 +111,13 @@ public:
      * @return An HttpResponse pointer on success, or NULL on failure.
      *         See get_error() for the error code.
      */
-    HttpResponse* send(Callback<const void*(uint32_t*)> body_cb) {
+    HttpResponse *send(Callback<const void *(uint32_t *)> body_cb) {
 
         nsapi_error_t ret;
 
         if ((ret = connect_socket()) != NSAPI_ERROR_OK) {
             _error = ret;
-            return NULL;
+            return nullptr;
         }
 
         _request_buffer_ix = 0;
@@ -131,7 +125,7 @@ public:
         set_header("Transfer-Encoding", "chunked");
 
         uint32_t request_size = 0;
-        char* request = _request_builder->build(NULL, 0, request_size);
+        char *request = _request_builder->build(nullptr, 0, request_size);
 
         // first... send this request headers without the body
         nsapi_size_or_error_t total_send_count = send_buffer(request, request_size);
@@ -139,11 +133,11 @@ public:
         if (total_send_count < 0) {
             free(request);
             _error = total_send_count;
-            return NULL;
+            return nullptr;
         }
 
         // ok... now it's time to start sending chunks...
-        while (1) {
+        while (true) {
             uint32_t size;
             const void *buffer = body_cb(&size);
 
@@ -155,32 +149,32 @@ public:
             if ((total_send_count = send_buffer(size_buff, static_cast<uint32_t>(size_buff_size))) < 0) {
                 free(request);
                 _error = total_send_count;
-                return NULL;
+                return nullptr;
             }
 
             // now send the normal buffer... and then \r\n at the end
-            total_send_count = send_buffer((char*)buffer, size);
+            total_send_count = send_buffer((char *) buffer, size);
             if (total_send_count < 0) {
                 free(request);
                 _error = total_send_count;
-                return NULL;
+                return nullptr;
             }
 
             // and... \r\n
-            const char* rn = "\r\n";
-            if ((total_send_count = send_buffer((char*)rn, 2)) < 0) {
+            const char *rn = "\r\n";
+            if ((total_send_count = send_buffer((char *) rn, 2)) < 0) {
                 free(request);
                 _error = total_send_count;
-                return NULL;
+                return nullptr;
             }
         }
 
         // finalize...?
-        const char* fin = "0\r\n\r\n";
-        if ((total_send_count = send_buffer((char*)fin, strlen(fin))) < 0) {
+        const char *fin = "0\r\n\r\n";
+        if ((total_send_count = send_buffer((char *) fin, strlen(fin))) < 0) {
             free(request);
             _error = total_send_count;
-            return NULL;
+            return nullptr;
         }
 
         free(request);
@@ -206,7 +200,7 @@ public:
      * Set content type to json
      */
     void set_json_ct() {
-      set_header("Content-Type", "application/json");
+        set_header("Content-Type", "application/json");
     }
 
     /**
@@ -239,16 +233,15 @@ public:
         return _request_buffer_ix;
     }
 
-protected:
+  protected:
     virtual nsapi_error_t connect_socket(char *host, uint16_t port) = 0;
 
-private:
-    nsapi_error_t connect_socket( ) {
+  private:
+    nsapi_error_t connect_socket() {
         if (_response != NULL) {
             // already executed this response
             return -2100; // @todo, make a lookup table with errors
         }
-
 
         if (_we_created_socket) {
             nsapi_error_t connection_result = connect_socket(_parsed_url->host(), _parsed_url->port());
@@ -260,16 +253,16 @@ private:
         return NSAPI_ERROR_OK;
     }
 
-    nsapi_size_or_error_t send_buffer(char* buffer, uint32_t buffer_size) {
+    nsapi_size_or_error_t send_buffer(char *buffer, nsapi_size_or_error_t buffer_size) {
         nsapi_size_or_error_t total_send_count = 0;
         while (total_send_count < buffer_size) {
 
             // get a slice of the buffer
             char *buffer_slice = buffer + total_send_count;
-            uint32_t buffer_slice_size = buffer_size - total_send_count;
+            auto buffer_slice_size = buffer_size - total_send_count;
 
             // if request buffer was set, copy it there
-            if (_request_buffer != NULL && _request_buffer_ix + buffer_slice_size < _request_buffer_size) {
+            if (_request_buffer != nullptr && _request_buffer_ix + buffer_slice_size < _request_buffer_size) {
                 memcpy(_request_buffer + _request_buffer_ix, buffer_slice, buffer_slice_size);
                 _request_buffer_ix += buffer_slice_size;
             }
@@ -291,26 +284,26 @@ private:
         return total_send_count;
     }
 
-    HttpResponse* create_http_response() {
+    HttpResponse *create_http_response() {
         // Create a response object
         _response = new HttpResponse();
         // And a response parser
         HttpParser parser(_response, HTTP_RESPONSE, _body_callback);
 
         // Set up a receive buffer (on the heap)
-        uint8_t* recv_buffer = (uint8_t*)malloc(HTTP_RECEIVE_BUFFER_SIZE);
+        auto *recv_buffer = (uint8_t *) malloc(HTTP_RECEIVE_BUFFER_SIZE);
 
         // Socket::recv is called until we don't have any data anymore
         nsapi_size_or_error_t recv_ret;
         while ((recv_ret = _socket->recv(recv_buffer, HTTP_RECEIVE_BUFFER_SIZE)) > 0) {
 
             // Pass the chunk into the http_parser
-            uint32_t nparsed = parser.execute((const char*)recv_buffer, recv_ret);
+            auto nparsed = static_cast<nsapi_size_or_error_t>(parser.execute((const char *) recv_buffer, recv_ret));
             if (nparsed != recv_ret) {
                 // printf("Parsing failed... parsed %d bytes, received %d bytes\n", nparsed, recv_ret);
                 _error = -2101;
                 free(recv_buffer);
-                return NULL;
+                return nullptr;
             }
 
             if (_response->is_message_complete()) {
@@ -321,7 +314,7 @@ private:
         if (recv_ret < 0) {
             _error = recv_ret;
             free(recv_buffer);
-            return NULL;
+            return nullptr;
         }
 
         // When done, call parser.finish()
@@ -338,22 +331,22 @@ private:
         return _response;
     }
 
-private:
-    Socket* _socket;
-    NetworkInterface* _network;
+  private:
+    Socket *_socket;
+    NetworkInterface *_network;
     Callback<void(const char *at, uint32_t length)> _body_callback;
 
-    ParsedUrl* _parsed_url;
+    ParsedUrl *_parsed_url{};
 
-    HttpRequestBuilder* _request_builder;
-    HttpResponse* _response;
+    HttpRequestBuilder *_request_builder{};
+    HttpResponse *_response{};
 
-    bool _we_created_socket;
+    bool _we_created_socket{};
 
-    nsapi_error_t _error;
+    nsapi_error_t _error{};
 
     uint8_t *_request_buffer;
-    size_t _request_buffer_size;
+    size_t _request_buffer_size{};
     size_t _request_buffer_ix;
 };
 

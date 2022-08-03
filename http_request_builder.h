@@ -55,8 +55,8 @@ public:
      * Set a header for the request
      * If the key already exists, it will be overwritten...
      */
-    void set_header(string key, string value) {
-        map<string, string>::iterator it = headers.find(key);
+    void set_header(const string& key, const string& value) {
+        auto it = headers.find(key);
 
         if (it != headers.end()) {
             it->second = value;
@@ -73,7 +73,7 @@ public:
 
         if (!is_chunked && (method == HTTP_POST || method == HTTP_PUT || method == HTTP_DELETE || body_size > 0)) {
             char buffer[10];
-            snprintf(buffer, 10, "%u", body_size);
+            snprintf(buffer, 10, "%lu", body_size);
             set_header("Content-Length", string(buffer));
         }
 
@@ -83,10 +83,9 @@ public:
         size += strlen(method_str) + 1 + strlen(parsed_url->path()) + (strlen(parsed_url->query()) ? strlen(parsed_url->query()) + 1 : 0) + 1 + 8 + 2;
 
         // after that we'll do the headers
-        typedef map<string, string>::iterator it_type;
-        for(it_type it = headers.begin(); it != headers.end(); it++) {
+        for(auto & header : headers) {
             // line is KEY: VALUE\r\n
-            size += it->first.length() + 1 + 1 + it->second.length() + 2;
+            size += header.first.length() + 1 + 1 + header.second.length() + 2;
         }
 
         // then the body, first an extra newline
@@ -108,11 +107,10 @@ public:
         }
         req += strlen(method_str) + 1 + strlen(parsed_url->path()) + (strlen(parsed_url->query()) ? strlen(parsed_url->query()) + 1 : 0) + 1 + 8 + 2;
 
-        typedef map<string, string>::iterator it_type;
-        for(it_type it = headers.begin(); it != headers.end(); it++) {
+        for(auto & header : headers) {
             // line is KEY: VALUE\r\n
-            sprintf(req, "%s: %s\r\n", it->first.c_str(), it->second.c_str());
-            req += it->first.length() + 1 + 1 + it->second.length() + 2;
+            sprintf(req, "%s: %s\r\n", header.first.c_str(), header.second.c_str());
+            req += header.first.length() + 1 + 1 + header.second.length() + 2;
         }
 
         sprintf(req, "\r\n");
@@ -132,11 +130,10 @@ public:
     }
 
 private:
-    bool has_header(const char* key, const char* value = NULL) {
-        typedef map<string, string>::iterator it_type;
-        for(it_type it = headers.begin(); it != headers.end(); it++) {
-            if (strcmp(it->first.c_str(), key) == 0) { // key matches
-                if (value == NULL || (strcmp(it->second.c_str(), value) == 0)) { // value is NULL or matches
+    bool has_header(const char* key, const char* value = nullptr) {
+        for(auto & header : headers) {
+            if (strcmp(header.first.c_str(), key) == 0) { // key matches
+                if (value == nullptr || (strcmp(header.second.c_str(), value) == 0)) { // value is NULL or matches
                     return true;
                 }
             }
